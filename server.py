@@ -22,10 +22,18 @@ app.add_middleware(
 async def generate_heatmap(request: Request):
     try:
         data = await request.json()
-        # Safely cast to float
-        d1 = float(data.get("distance1", 0))
-        d2 = float(data.get("distance2", 0))
-        d3 = float(data.get("distance3", 0))
+
+        def safe_float(val):
+            try:
+                return float(val)
+            except:
+                return 0.0  # fallback
+
+        d1 = safe_float(data.get("distance1"))
+        d2 = safe_float(data.get("distance2"))
+        d3 = safe_float(data.get("distance3"))
+
+        print(f"🔢 Distances received: {d1}, {d2}, {d3}")
 
         x = [0, 1, 2]
         y = [d1, d2, d3]
@@ -46,4 +54,5 @@ async def generate_heatmap(request: Request):
 
     except Exception as e:
         print("🔥 ERROR IN /heatmap/:", e)
-        return {"error": str(e)}
+        from fastapi.responses import JSONResponse
+        return JSONResponse(status_code=500, content={"error": str(e)})
