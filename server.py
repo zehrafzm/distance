@@ -15,7 +15,6 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
-
 @app.post("/heatmap/")
 async def generate_heatmap(request: Request):
     try:
@@ -33,32 +32,33 @@ async def generate_heatmap(request: Request):
 
         print(f"🔢 Distances received: {d1}, {d2}, {d3}")
 
-        width, height = 300, 150
-        grid_x, grid_y = np.meshgrid(np.linspace(0, 1, width), np.linspace(0, 1, height))
+        # Updated point layout (not all y's same)
+        sensor_x = np.array([0.25, 0.5, 0.75])
+        sensor_y = np.array([0.3, 0.7, 0.4])
+        sensor_vals = np.array([d1, d2, d3])
 
-        # Gaussian function generator
-        def gaussian(x, y, center_x, center_y, intensity, sigma=0.15):
-            return intensity * np.exp(-((x - center_x)**2 + (y - center_y)**2) / (2 * sigma**2))
-
-        # Add 3 sensor "heat sources"
-        heatmap = (
-            gaussian(grid_x, grid_y, 0.0, 0.5, d1) +
-            gaussian(grid_x, grid_y, 0.5, 0.5, d2) +
-            gaussian(grid_x, grid_y, 1.0, 0.5, d3)
+        grid_x, grid_y = np.meshgrid(
+            np.linspace(0, 1, 300),
+            np.linspace(0, 1, 200)
         )
 
-        # Normalize
-        norm_heatmap = np.clip(heatmap / 60.0, 0, 1)
+        from scipy.interpolate import griddata
+        grid_z = griddata(
+            points=(sensor_x, sensor_y),
+            values=sensor_vals,
+            xi=(grid_x, grid_y),
+            method='linear',
+            fill_value=0
+        )
 
-        # Apply colormap
+        norm_image = np.clip(grid_z / 60.0, 0, 1)
         colormap = plt.get_cmap('plasma')
-        colored_img = colormap(norm_heatmap)
+        colored_img = colormap(norm_image)
         img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
 
         buf = BytesIO()
         img.save(buf, format="PNG")
         buf.seek(0)
-
         return StreamingResponse(buf, media_type="image/png")
 
     except Exception as e:
