@@ -1,10 +1,11 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import StreamingResponse, JSONResponse
+from fastapi.responses import StreamingResponse, JSONResponse, Response
 from fastapi.middleware.cors import CORSMiddleware
 from io import BytesIO
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
 
 app = FastAPI()
 
@@ -15,6 +16,7 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 @app.post("/heatmap/")
 async def generate_heatmap(request: Request):
     try:
@@ -35,19 +37,20 @@ async def generate_heatmap(request: Request):
         # 🚫 Ignore meaningless frames
         if d1 == 0.0 and d2 == 0.0 and d3 == 0.0:
             print("❌ Skipping zeroed-out frame")
-            return JSONResponse(status_code=204, content={"message": "No valid data"})
+            return Response(status_code=204)  # ✅ No body, valid 204
 
-        # Sensor positions (for better 2D blending)
+        # Sensor coordinates (spread a bit to avoid flat surface)
         sensor_x = np.array([0.25, 0.5, 0.75])
         sensor_y = np.array([0.3, 0.7, 0.4])
         sensor_vals = np.array([d1, d2, d3])
 
+        # Interpolation grid
         grid_x, grid_y = np.meshgrid(
             np.linspace(0, 1, 300),
             np.linspace(0, 1, 200)
         )
 
-        from scipy.interpolate import griddata
+        # Interpolation
         grid_z = griddata(
             points=(sensor_x, sensor_y),
             values=sensor_vals,
@@ -56,11 +59,13 @@ async def generate_heatmap(request: Request):
             fill_value=0
         )
 
+        # Normalize & color
         norm_image = np.clip(grid_z / 60.0, 0, 1)
         colormap = plt.get_cmap('plasma')
         colored_img = colormap(norm_image)
         img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
 
+        # Stream to client
         buf = BytesIO()
         img.save(buf, format="PNG")
         buf.seek(0)
