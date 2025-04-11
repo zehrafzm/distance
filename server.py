@@ -36,7 +36,7 @@ async def generate_heatmap(request: Request):
 
         # Coordinates for the sensor points (left, middle, right)
         sensor_x = np.array([0, 0.5, 1])
-        sensor_y = np.array([0.5, 0.5, 0.5])  # center row
+        sensor_y = np.array([0.49, 0.5, 0.51])  # small vertical offset to avoid coplanarity
         sensor_vals = np.array([d1, d2, d3])
 
         # Create a grid to interpolate over
