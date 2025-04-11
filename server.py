@@ -12,11 +12,12 @@ app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Change this to specific origin in production
+    allow_origins=["*"],  # or ["https://distance-web.vercel.app"]
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
 
 @app.post("/heatmap/")
 async def generate_heatmap(request: Request):
