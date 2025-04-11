@@ -18,17 +18,18 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-
 @app.post("/heatmap/")
 async def generate_heatmap(request: Request):
     try:
         data = await request.json()
-        d1 = data.get("distance1", 0)
-        d2 = data.get("distance2", 0)
-        d3 = data.get("distance3", 0)
+        # Safely cast to float
+        d1 = float(data.get("distance1", 0))
+        d2 = float(data.get("distance2", 0))
+        d3 = float(data.get("distance3", 0))
 
         x = [0, 1, 2]
         y = [d1, d2, d3]
+
         x_interp = np.linspace(0, 2, 300)
         y_interp = np.interp(x_interp, x, y)
         image = np.tile(y_interp, (100, 1))
@@ -46,4 +47,3 @@ async def generate_heatmap(request: Request):
     except Exception as e:
         print("🔥 ERROR IN /heatmap/:", e)
         return {"error": str(e)}
-
