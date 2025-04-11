@@ -3,3 +3,6 @@ uvicorn
 python-multipart
 aiofiles
 opencv-python-headless
+pillow
+matplotlib
+numpy
