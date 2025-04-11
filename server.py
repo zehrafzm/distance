@@ -1,18 +1,17 @@
 from fastapi import FastAPI, Request
-from fastapi.responses import FileResponse
+from fastapi.responses import StreamingResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
-import matplotlib.pyplot as plt
-import numpy as np
-import os
 from io import BytesIO
 from PIL import Image
-from fastapi.responses import StreamingResponse
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # or ["https://distance-web.vercel.app"]
+    allow_origins=["*"],  # in prod use your domain here
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -35,13 +34,30 @@ async def generate_heatmap(request: Request):
 
         print(f"🔢 Distances received: {d1}, {d2}, {d3}")
 
-        x = [0, 1, 2]
-        y = [d1, d2, d3]
+        # Coordinates for the sensor points (left, middle, right)
+        sensor_x = np.array([0, 0.5, 1])
+        sensor_y = np.array([0.5, 0.5, 0.5])  # center row
+        sensor_vals = np.array([d1, d2, d3])
 
-        x_interp = np.linspace(0, 2, 300)
-        y_interp = np.interp(x_interp, x, y)
-        image = np.tile(y_interp, (100, 1))
-        norm_image = np.clip(image / 60.0, 0, 1)
+        # Create a grid to interpolate over
+        grid_x, grid_y = np.meshgrid(
+            np.linspace(0, 1, 300),  # width
+            np.linspace(0, 1, 100)   # height
+        )
+
+        # Interpolate values using linear interpolation
+        grid_z = griddata(
+            points=(sensor_x, sensor_y),
+            values=sensor_vals,
+            xi=(grid_x, grid_y),
+            method='cubic',
+            fill_value=0
+        )
+
+        # Normalize to [0, 1] range
+        norm_image = np.clip(grid_z / 60.0, 0, 1)
+
+        # Apply colormap
         colormap = plt.get_cmap('plasma')
         colored_img = colormap(norm_image)
         img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
@@ -54,5 +70,4 @@ async def generate_heatmap(request: Request):
 
     except Exception as e:
         print("🔥 ERROR IN /heatmap/:", e)
-        from fastapi.responses import JSONResponse
         return JSONResponse(status_code=500, content={"error": str(e)})
