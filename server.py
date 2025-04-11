@@ -26,7 +26,7 @@ async def generate_heatmap(request: Request):
             try:
                 return float(val)
             except:
-                return 0.0  # fallback
+                return 0.0
 
         d1 = safe_float(data.get("distance1"))
         d2 = safe_float(data.get("distance2"))
@@ -34,31 +34,14 @@ async def generate_heatmap(request: Request):
 
         print(f"🔢 Distances received: {d1}, {d2}, {d3}")
 
-        # Coordinates for the sensor points (left, middle, right)
-        sensor_x = np.array([0, 0.5, 1])
-        sensor_y = np.array([0.49, 0.5, 0.51])  # small vertical offset to avoid coplanarity
-        sensor_vals = np.array([d1, d2, d3])
+        # Linear interpolation between three points
+        x = np.array([0, 0.5, 1.0])
+        y = np.array([d1, d2, d3])
+        x_interp = np.linspace(0, 1, 300)
+        y_interp = np.interp(x_interp, x, y)
+        image = np.tile(y_interp, (150, 1))
+        norm_image = np.clip(image / 60.0, 0, 1)
 
-        # Create a grid to interpolate over
-        grid_x, grid_y = np.meshgrid(
-            np.linspace(0, 1, 300),  # width
-            np.linspace(0, 1, 100)   # height
-        )
-
-        # Interpolate values using linear interpolation
-        grid_z = griddata(
-        points=(sensor_x, sensor_y),
-        values=sensor_vals,
-        xi=(grid_x, grid_y),
-        method='linear',  # ← changed from "cubic"
-        fill_value=0
-    )
-
-
-        # Normalize to [0, 1] range
-        norm_image = np.clip(grid_z / 60.0, 0, 1)
-
-        # Apply colormap
         colormap = plt.get_cmap('plasma')
         colored_img = colormap(norm_image)
         img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
