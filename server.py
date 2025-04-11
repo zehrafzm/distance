@@ -21,24 +21,29 @@ app.add_middleware(
 
 @app.post("/heatmap/")
 async def generate_heatmap(request: Request):
-    data = await request.json()
-    d1 = data.get("distance1", 0)
-    d2 = data.get("distance2", 0)
-    d3 = data.get("distance3", 0)
+    try:
+        data = await request.json()
+        d1 = data.get("distance1", 0)
+        d2 = data.get("distance2", 0)
+        d3 = data.get("distance3", 0)
 
-    # Create heatmap image (same as before)
-    x = [0, 1, 2]
-    y = [d1, d2, d3]
-    x_interp = np.linspace(0, 2, 300)
-    y_interp = np.interp(x_interp, x, y)
-    image = np.tile(y_interp, (100, 1))
-    norm_image = np.clip(image / 60.0, 0, 1)
-    colormap = plt.get_cmap('plasma')
-    colored_img = colormap(norm_image)
-    img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
+        x = [0, 1, 2]
+        y = [d1, d2, d3]
+        x_interp = np.linspace(0, 2, 300)
+        y_interp = np.interp(x_interp, x, y)
+        image = np.tile(y_interp, (100, 1))
+        norm_image = np.clip(image / 60.0, 0, 1)
+        colormap = plt.get_cmap('plasma')
+        colored_img = colormap(norm_image)
+        img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
 
-    buf = BytesIO()
-    img.save(buf, format="PNG")
-    buf.seek(0)
+        buf = BytesIO()
+        img.save(buf, format="PNG")
+        buf.seek(0)
 
-    return StreamingResponse(buf, media_type="image/png")
+        return StreamingResponse(buf, media_type="image/png")
+
+    except Exception as e:
+        print("🔥 ERROR IN /heatmap/:", e)
+        return {"error": str(e)}
+
