@@ -5,13 +5,12 @@ from io import BytesIO
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
 
 app = FastAPI()
 
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # in prod use your domain here
+    allow_origins=["*"],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -34,16 +33,26 @@ async def generate_heatmap(request: Request):
 
         print(f"🔢 Distances received: {d1}, {d2}, {d3}")
 
-        # Linear interpolation between three points
-        x = np.array([0, 0.5, 1.0])
-        y = np.array([d1, d2, d3])
-        x_interp = np.linspace(0, 1, 300)
-        y_interp = np.interp(x_interp, x, y)
-        image = np.tile(y_interp, (150, 1))
-        norm_image = np.clip(image / 60.0, 0, 1)
+        width, height = 300, 150
+        grid_x, grid_y = np.meshgrid(np.linspace(0, 1, width), np.linspace(0, 1, height))
 
+        # Gaussian function generator
+        def gaussian(x, y, center_x, center_y, intensity, sigma=0.15):
+            return intensity * np.exp(-((x - center_x)**2 + (y - center_y)**2) / (2 * sigma**2))
+
+        # Add 3 sensor "heat sources"
+        heatmap = (
+            gaussian(grid_x, grid_y, 0.0, 0.5, d1) +
+            gaussian(grid_x, grid_y, 0.5, 0.5, d2) +
+            gaussian(grid_x, grid_y, 1.0, 0.5, d3)
+        )
+
+        # Normalize
+        norm_heatmap = np.clip(heatmap / 60.0, 0, 1)
+
+        # Apply colormap
         colormap = plt.get_cmap('plasma')
-        colored_img = colormap(norm_image)
+        colored_img = colormap(norm_heatmap)
         img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
 
         buf = BytesIO()
