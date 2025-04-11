@@ -1,59 +1,47 @@
-# server.py
-from fastapi import FastAPI, File, UploadFile, Form
+from fastapi import FastAPI, Request
 from fastapi.responses import FileResponse
 from fastapi.middleware.cors import CORSMiddleware
+import matplotlib.pyplot as plt
+import numpy as np
 import os
-import mimetypes
-from conversion import process_file, remux_video
+from io import BytesIO
+from PIL import Image
 
 app = FastAPI()
 
-# Enable CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # Or specify ["http://192.168.1.13:3000"] for stricter access
+    allow_origins=["*"],  # Change this to specific origin in production
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# Output directory
-OUTPUT_DIR = "processed_files"
-os.makedirs(OUTPUT_DIR, exist_ok=True)
+@app.post("/heatmap/")
+async def generate_heatmap(request: Request):
+    data = await request.json()
+    d1 = data.get("distance1", 0)
+    d2 = data.get("distance2", 0)
+    d3 = data.get("distance3", 0)
 
-@app.post("/process/")
-async def process_file_endpoint(
-    file: UploadFile = File(...),
-    lower_threshold: int = Form(...),
-    upper_threshold: int = Form(...),
-    is_black_background: bool = Form(...),
-    high_quality: bool = Form(False)  
-):
-    # Save uploaded file
-    input_path = os.path.join(OUTPUT_DIR, file.filename)
-    with open(input_path, "wb") as f:
-        f.write(await file.read())
+    # Create a 1D distance array and interpolate to create smooth 2D image
+    x = [0, 1, 2]
+    y = [d1, d2, d3]
+    x_interp = np.linspace(0, 2, 300)
+    y_interp = np.interp(x_interp, x, y)
+    image = np.tile(y_interp, (100, 1))
 
-    # Determine output paths
-    ext = os.path.splitext(file.filename)[-1].lower()
-    processed_path = os.path.join(OUTPUT_DIR, f"processed_{file.filename}")
-    final_path = processed_path
+    # Normalize to colormap (e.g. from 0 to 60 cm)
+    norm_image = np.clip(image / 60.0, 0, 1)
 
-    # Process file (image or video)
-    process_file(
-        input_path,
-        processed_path,
-        lower_threshold,
-        upper_threshold,
-        is_black_background,
-        high_quality
-    )
+    # Convert to RGB image using colormap
+    colormap = plt.get_cmap('plasma')
+    colored_img = colormap(norm_image)
+    img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
 
-    # If video, remux for browser playback
-    if ext in [".mp4", ".avi", ".mov"]:
-        final_path = os.path.join(OUTPUT_DIR, f"remuxed_{file.filename}")
-        remux_video(processed_path, final_path, input_path) 
+    # Save image to buffer
+    buf = BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
 
-    # Detect MIME type
-    media_type, _ = mimetypes.guess_type(final_path)
-    return FileResponse(final_path, media_type=media_type, filename=os.path.basename(final_path))
+    return FileResponse(buf, media_type="image/png", filename="heatmap.png")
