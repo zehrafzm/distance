@@ -47,12 +47,13 @@ async def generate_heatmap(request: Request):
 
         # Interpolate values using linear interpolation
         grid_z = griddata(
-            points=(sensor_x, sensor_y),
-            values=sensor_vals,
-            xi=(grid_x, grid_y),
-            method='cubic',
-            fill_value=0
-        )
+        points=(sensor_x, sensor_y),
+        values=sensor_vals,
+        xi=(grid_x, grid_y),
+        method='linear',  # ← changed from "cubic"
+        fill_value=0
+    )
+
 
         # Normalize to [0, 1] range
         norm_image = np.clip(grid_z / 60.0, 0, 1)
