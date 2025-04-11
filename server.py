@@ -34,23 +34,20 @@ async def generate_heatmap(request: Request):
 
         print(f"🔢 Distances received: {d1}, {d2}, {d3}")
 
-        # 🚫 Ignore meaningless frames
         if d1 == 0.0 and d2 == 0.0 and d3 == 0.0:
             print("❌ Skipping zeroed-out frame")
-            return Response(status_code=204)  # ✅ No body, valid 204
+            return JSONResponse(status_code=204, content={"message": "No valid data"})
 
-        # Sensor coordinates (spread a bit to avoid flat surface)
         sensor_x = np.array([0.25, 0.5, 0.75])
         sensor_y = np.array([0.3, 0.7, 0.4])
         sensor_vals = np.array([d1, d2, d3])
 
-        # Interpolation grid
         grid_x, grid_y = np.meshgrid(
             np.linspace(0, 1, 300),
             np.linspace(0, 1, 200)
         )
 
-        # Interpolation
+        from scipy.interpolate import griddata
         grid_z = griddata(
             points=(sensor_x, sensor_y),
             values=sensor_vals,
@@ -59,17 +56,16 @@ async def generate_heatmap(request: Request):
             fill_value=0
         )
 
-        # Normalize & color
         norm_image = np.clip(grid_z / 60.0, 0, 1)
         colormap = plt.get_cmap('plasma')
         colored_img = colormap(norm_image)
         img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
 
-        # Stream to client
         buf = BytesIO()
         img.save(buf, format="PNG")
-        buf.seek(0)
-        return StreamingResponse(buf, media_type="image/png")
+        img_bytes = buf.getvalue()
+
+        return Response(content=img_bytes, media_type="image/png")
 
     except Exception as e:
         print("🔥 ERROR IN /heatmap/:", e)
