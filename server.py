@@ -34,10 +34,11 @@ async def generate_heatmap(request: Request):
 
         print(f"🔢 Distances received: {d1}, {d2}, {d3}")
 
+     
         if d1 == 0.0 and d2 == 0.0 and d3 == 0.0:
-            print("❌ Skipping zeroed-out frame")
-            return JSONResponse(status_code=204, content={"message": "No valid data"})
-
+        print("❌ Skipping zeroed-out frame")
+        return Response(status_code=204)
+        
         sensor_x = np.array([0.25, 0.5, 0.75])
         sensor_y = np.array([0.3, 0.7, 0.4])
         sensor_vals = np.array([d1, d2, d3])
