@@ -34,11 +34,11 @@ async def generate_heatmap(request: Request):
 
         print(f"🔢 Distances received: {d1}, {d2}, {d3}")
 
-     
+        # ✅ Proper indentation here
         if d1 == 0.0 and d2 == 0.0 and d3 == 0.0:
-        print("❌ Skipping zeroed-out frame")
-        return Response(status_code=204)
-        
+            print("❌ Skipping zeroed-out frame")
+            return Response(status_code=204)
+
         sensor_x = np.array([0.25, 0.5, 0.75])
         sensor_y = np.array([0.3, 0.7, 0.4])
         sensor_vals = np.array([d1, d2, d3])
@@ -48,7 +48,6 @@ async def generate_heatmap(request: Request):
             np.linspace(0, 1, 200)
         )
 
-        from scipy.interpolate import griddata
         grid_z = griddata(
             points=(sensor_x, sensor_y),
             values=sensor_vals,
