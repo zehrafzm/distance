@@ -5,7 +5,7 @@ from io import BytesIO
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
+from scipy.interpolate import RBFInterpolator
 
 app = FastAPI()
 
@@ -48,13 +48,12 @@ async def generate_heatmap(request: Request):
             np.linspace(0, 1, 200)
         )
 
-        grid_z = griddata(
-            points=(sensor_x, sensor_y),
-            values=sensor_vals,
-            xi=(grid_x, grid_y),
-            method='linear',
-            fill_value=0
-        )
+        points = np.column_stack((sensor_x, sensor_y))
+        rbf = RBFInterpolator(points, sensor_vals, smoothing=5.0)
+        
+        flat_grid = np.column_stack((grid_x.ravel(), grid_y.ravel()))
+        grid_z = rbf(flat_grid).reshape(grid_x.shape)
+
 
         norm_image = np.clip(grid_z / 60.0, 0, 1)
         colormap = plt.get_cmap('plasma')
