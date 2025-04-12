@@ -34,32 +34,36 @@ async def generate_heatmap(request: Request):
 
         print(f"🔢 Distances received: {d1}, {d2}, {d3}")
 
-        # ✅ Proper indentation here
         if d1 == 0.0 and d2 == 0.0 and d3 == 0.0:
             print("❌ Skipping zeroed-out frame")
             return Response(status_code=204)
 
+        # Sensor positions in normalized coordinates
         sensor_x = np.array([0.25, 0.5, 0.75])
         sensor_y = np.array([0.3, 0.7, 0.4])
         sensor_vals = np.array([d1, d2, d3])
+        points = np.column_stack((sensor_x, sensor_y))
 
+        # Grid for interpolation
         grid_x, grid_y = np.meshgrid(
             np.linspace(0, 1, 300),
             np.linspace(0, 1, 200)
         )
-
-        points = np.column_stack((sensor_x, sensor_y))
-        rbf = RBFInterpolator(points, sensor_vals, smoothing=5.0)
-        
         flat_grid = np.column_stack((grid_x.ravel(), grid_y.ravel()))
+
+        # RBF interpolation for smoother, more complete heatmap
+        rbf = RBFInterpolator(points, sensor_vals, smoothing=5.0)
         grid_z = rbf(flat_grid).reshape(grid_x.shape)
 
+        # Normalize the heatmap values for colormap mapping
+        norm_image = (grid_z - np.min(grid_z)) / (np.max(grid_z) - np.min(grid_z) + 1e-6)
 
-        norm_image = np.clip(grid_z / 60.0, 0, 1)
+        # Convert to color image
         colormap = plt.get_cmap('plasma')
         colored_img = colormap(norm_image)
         img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
 
+        # Return as PNG image
         buf = BytesIO()
         img.save(buf, format="PNG")
         img_bytes = buf.getvalue()
