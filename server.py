@@ -22,41 +22,43 @@ async def generate_heatmap(request: Request):
     global latest_image_bytes
     try:
         data = await request.json()
-        def safe_float(val):
-            try:    return float(val)
+        def safe_float(v):
+            try:    return float(v)
             except: return 0.0
 
-        # Pull out nine distances
+        # 1) Read nine distances into a flat list
         d = [safe_float(data.get(f"distance{i}")) for i in range(1, 10)]
         print(f"📡 Distances received: {d}")
 
-        # Skip if all-zero
-        if all(v == 0.0 for v in d):
+        # 2) If all zero, skip
+        if all(val == 0.0 for val in d):
             return Response(status_code=204)
 
-        # Make a 3×3 array
+        # 3) Build a 3×3 array
         sensor_grid = np.array(d).reshape((3, 3))
 
-        # Normalize to [0,1]
-        minv, maxv = sensor_grid.min(), sensor_grid.max()
-        norm_grid = (sensor_grid - minv) / ( (maxv - minv) + 1e-6 )
+        # 4) Normalize to [0,1]
+        mn, mx = sensor_grid.min(), sensor_grid.max()
+        norm_grid = (sensor_grid - mn) / ( (mx - mn) + 1e-6 )
 
-        # Create a 300×200 PNG with 3×3 blocks
-        fig, ax = plt.subplots(figsize=(3, 2), dpi=100)
-        ax.imshow(
-            norm_grid,
-            cmap="plasma",
-            interpolation="nearest",
-            origin="lower",
-            extent=[0, 1, 0, 1]
-        )
-        ax.axis("off")
+        # 5) Map through plasma colormap → shape (3,3,4)
+        cmap = plt.get_cmap("plasma")
+        colored_rgba = cmap(norm_grid)
 
+        # 6) Drop alpha, convert to uint8 (3×3×3)
+        colored_rgb = (colored_rgba[:, :, :3] * 255).astype(np.uint8)
+
+        # 7) Make a tiny PIL image (3×3 pixels)
+        tiny = Image.fromarray(colored_rgb, mode="RGB")
+
+        # 8) Upscale to e.g. 300×300 with NEAREST so each block is exactly 100×100px
+        img = tiny.resize((300, 300), resample=Image.NEAREST)
+
+        # 9) Write PNG to memory
         buf = BytesIO()
-        fig.savefig(buf, format="PNG", bbox_inches="tight", pad_inches=0)
-        plt.close(fig)
-
+        img.save(buf, format="PNG")
         latest_image_bytes = buf.getvalue()
+
         print("✅ Block heatmap updated.")
         return Response(status_code=200)
 
