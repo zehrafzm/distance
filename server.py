@@ -1,5 +1,4 @@
-from fastapi import FastAPI, Request
-from fastapi.responses import Response, JSONResponse
+from fastapi import FastAPI, Request, Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from io import BytesIO
 from PIL import Image
@@ -8,8 +7,6 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import RBFInterpolator
 
 app = FastAPI()
-
-# Allow all origins (or restrict as needed)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=["*"],
@@ -18,7 +15,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Global image buffer
 latest_image_bytes = None
 
 @app.post("/heatmap/")
@@ -28,40 +24,44 @@ async def generate_heatmap(request: Request):
         data = await request.json()
 
         def safe_float(val):
-            try:
-                return float(val)
-            except:
-                return 0.0
+            try:    return float(val)
+            except: return 0.0
 
-        d1 = safe_float(data.get("distance1"))
-        d2 = safe_float(data.get("distance2"))
-        d3 = safe_float(data.get("distance3"))
+        # Pull out six distances
+        d = [safe_float(data.get(f"distance{i}")) for i in range(1,7)]
+        print(f"📡 Distances received: {d}")
 
-        print(f"📡 Distances received: {d1}, {d2}, {d3}")
-
-        if d1 == 0.0 and d2 == 0.0 and d3 == 0.0:
+        # If all six are zero, skip
+        if all(v == 0.0 for v in d):
             print("⚠️ Skipped frame due to all-zero values")
             return Response(status_code=204)
 
-        sensor_x = np.array([0.25, 0.5, 0.75])
-        sensor_y = np.array([0.3, 0.7, 0.4])
-        sensor_vals = np.array([d1, d2, d3])
+        # Define your six sensor locations in normalized [0,1]×[0,1]
+        # (Change these to your actual layout if different!)
+        sensor_x = np.array([0.2, 0.5, 0.8, 0.2, 0.5, 0.8])
+        sensor_y = np.array([0.2, 0.2, 0.2, 0.8, 0.8, 0.8])
+
+        sensor_vals = np.array(d)
         points = np.column_stack((sensor_x, sensor_y))
 
+        # Build the grid you want to display
         grid_x, grid_y = np.meshgrid(
             np.linspace(0, 1, 300),
             np.linspace(0, 1, 200)
         )
         flat_grid = np.column_stack((grid_x.ravel(), grid_y.ravel()))
 
+        # RBF interpolation
         rbf = RBFInterpolator(points, sensor_vals, smoothing=5.0)
         grid_z = rbf(flat_grid).reshape(grid_x.shape)
 
-        norm_image = (grid_z - np.min(grid_z)) / (np.max(grid_z) - np.min(grid_z) + 1e-6)
-        colormap = plt.get_cmap('plasma')
-        colored_img = colormap(norm_image)
-        img = Image.fromarray((colored_img[:, :, :3] * 255).astype(np.uint8))
+        # Normalize and colorize
+        norm = (grid_z - grid_z.min()) / (grid_z.ptp() + 1e-6)
+        cmap = plt.get_cmap("plasma")
+        colored = cmap(norm)
+        img = Image.fromarray((colored[:, :, :3] * 255).astype(np.uint8))
 
+        # Write to in-memory PNG
         buf = BytesIO()
         img.save(buf, format="PNG")
         latest_image_bytes = buf.getvalue()
