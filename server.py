@@ -58,7 +58,9 @@ async def generate_heatmap(request: Request):
         grid_z = rbf(flat_grid).reshape(grid_x.shape)
 
         # Normalize and colorize
-        norm = (grid_z - grid_z.min()) / (grid_z.ptp() + 1e-6)
+        # Normalize and colorize (using numpy’s standalone ptp)
+        norm = (grid_z - grid_z.min()) / (np.ptp(grid_z) + 1e-6)
+
         cmap = plt.get_cmap("plasma")
         colored = cmap(norm)
         img = Image.fromarray((colored[:, :, :3] * 255).astype(np.uint8))
