@@ -31,7 +31,7 @@ async def generate_heatmap(request: Request):
                 return 0.0
 
         # Pull out six distances
-        d = [safe_float(data.get(f"distance{i}")) for i in range(1, 7)]
+        d = [safe_float(data.get(f"distance{i}")) for i in range(1, 10)]
         print(f"📡 Distances received: {d}")
 
         # If all six are zero, skip
@@ -40,8 +40,8 @@ async def generate_heatmap(request: Request):
             return Response(status_code=204)
 
         # Define your six sensor locations
-        sensor_x = np.array([0.2, 0.5, 0.8, 0.2, 0.5, 0.8])
-        sensor_y = np.array([0.2, 0.2, 0.2, 0.8, 0.8, 0.8])
+        sensor_x = np.array([0.2, 0.5, 0.8, 0.2, 0.5, 0.8, 0.2, 0.5, 0.8])
+        sensor_y = np.array([0.2, 0.2, 0.2, 0.5, 0.5, 0.5, 0.8, 0.8, 0.8])
 
         sensor_vals = np.array(d)
         points = np.column_stack((sensor_x, sensor_y))
