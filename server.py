@@ -5,6 +5,7 @@ from io import BytesIO
 from PIL import Image
 import numpy as np
 import matplotlib.pyplot as plt
+from scipy.interpolate import RBFInterpolator
 
 app = FastAPI()
 app.add_middleware(
@@ -22,44 +23,54 @@ async def generate_heatmap(request: Request):
     global latest_image_bytes
     try:
         data = await request.json()
-        def safe_float(v):
-            try:    return float(v)
-            except: return 0.0
 
-        # 1) Read nine distances into a flat list
+        def safe_float(val):
+            try:
+                return float(val)
+            except:
+                return 0.0
+
+        # Pull out six distances
         d = [safe_float(data.get(f"distance{i}")) for i in range(1, 10)]
         print(f"📡 Distances received: {d}")
 
-        # 2) If all zero, skip
-        if all(val == 0.0 for val in d):
+        # If all six are zero, skip
+        if all(v == 0.0 for v in d):
+            print("⚠️ Skipped frame due to all-zero values")
             return Response(status_code=204)
 
-        # 3) Build a 3×3 array
-        sensor_grid = np.array(d).reshape((3, 3))
+        # Define your six sensor locations
+        sensor_x = np.array([0.2, 0.5, 0.8, 0.2, 0.5, 0.8, 0.2, 0.5, 0.8])
+        sensor_y = np.array([0.2, 0.2, 0.2, 0.5, 0.5, 0.5, 0.8, 0.8, 0.8])
 
-        # 4) Normalize to [0,1]
-        mn, mx = sensor_grid.min(), sensor_grid.max()
-        norm_grid = (sensor_grid - mn) / ( (mx - mn) + 1e-6 )
+        sensor_vals = np.array(d)
+        points = np.column_stack((sensor_x, sensor_y))
 
-        # 5) Map through plasma colormap → shape (3,3,4)
+        # Build the grid
+        grid_x, grid_y = np.meshgrid(
+            np.linspace(0, 1, 300),
+            np.linspace(0, 1, 200)
+        )
+        flat_grid = np.column_stack((grid_x.ravel(), grid_y.ravel()))
+
+        # RBF interpolation
+        rbf = RBFInterpolator(points, sensor_vals, smoothing=0.5)
+        grid_z = rbf(flat_grid).reshape(grid_x.shape)
+
+        # Normalize and colorize
+        # Normalize and colorize (using numpy’s standalone ptp)
+        norm = (grid_z - grid_z.min()) / (np.ptp(grid_z) + 1e-6)
+
         cmap = plt.get_cmap("plasma")
-        colored_rgba = cmap(norm_grid)
+        colored = cmap(norm)
+        img = Image.fromarray((colored[:, :, :3] * 255).astype(np.uint8))
 
-        # 6) Drop alpha, convert to uint8 (3×3×3)
-        colored_rgb = (colored_rgba[:, :, :3] * 255).astype(np.uint8)
-
-        # 7) Make a tiny PIL image (3×3 pixels)
-        tiny = Image.fromarray(colored_rgb, mode="RGB")
-
-        # 8) Upscale to e.g. 300×300 with NEAREST so each block is exactly 100×100px
-        img = tiny.resize((300, 300), resample=Image.NEAREST)
-
-        # 9) Write PNG to memory
+        # Write to in-memory PNG
         buf = BytesIO()
         img.save(buf, format="PNG")
         latest_image_bytes = buf.getvalue()
 
-        print("✅ Block heatmap updated.")
+        print("✅ Heatmap updated.")
         return Response(status_code=200)
 
     except Exception as e:
@@ -71,4 +82,5 @@ async def get_latest_image():
     global latest_image_bytes
     if latest_image_bytes:
         return Response(content=latest_image_bytes, media_type="image/png")
-    return Response(status_code=204)
+    else:
+        return Response(status_code=204)
