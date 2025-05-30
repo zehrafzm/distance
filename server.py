@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request, Response, JSONResponse
+from fastapi import FastAPI, Request
+from fastapi.responses import Response, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from io import BytesIO
 from PIL import Image
@@ -24,11 +25,13 @@ async def generate_heatmap(request: Request):
         data = await request.json()
 
         def safe_float(val):
-            try:    return float(val)
-            except: return 0.0
+            try:
+                return float(val)
+            except:
+                return 0.0
 
         # Pull out six distances
-        d = [safe_float(data.get(f"distance{i}")) for i in range(1,7)]
+        d = [safe_float(data.get(f"distance{i}")) for i in range(1, 7)]
         print(f"📡 Distances received: {d}")
 
         # If all six are zero, skip
@@ -36,15 +39,14 @@ async def generate_heatmap(request: Request):
             print("⚠️ Skipped frame due to all-zero values")
             return Response(status_code=204)
 
-        # Define your six sensor locations in normalized [0,1]×[0,1]
-        # (Change these to your actual layout if different!)
+        # Define your six sensor locations
         sensor_x = np.array([0.2, 0.5, 0.8, 0.2, 0.5, 0.8])
         sensor_y = np.array([0.2, 0.2, 0.2, 0.8, 0.8, 0.8])
 
         sensor_vals = np.array(d)
         points = np.column_stack((sensor_x, sensor_y))
 
-        # Build the grid you want to display
+        # Build the grid
         grid_x, grid_y = np.meshgrid(
             np.linspace(0, 1, 300),
             np.linspace(0, 1, 200)
