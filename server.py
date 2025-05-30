@@ -54,7 +54,7 @@ async def generate_heatmap(request: Request):
         flat_grid = np.column_stack((grid_x.ravel(), grid_y.ravel()))
 
         # RBF interpolation
-        rbf = RBFInterpolator(points, sensor_vals, smoothing=1.0)
+        rbf = RBFInterpolator(points, sensor_vals, smoothing=0.5)
         grid_z = rbf(flat_grid).reshape(grid_x.shape)
 
         # Normalize and colorize
