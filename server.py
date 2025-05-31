@@ -77,12 +77,19 @@ async def generate_heatmap(request: Request):
 
         #  Define the RGBA tuples for each band (in matplotlib’s “plasma” style or custom).
         #  You can tweak these hex‐codes or RGB triples as you like:
-        colors = [
-            "#2c115f",  # dark blue  (for the lowest band: 0–0.286)
-            "#1f3284",  # medium‐blue/green (0.286–0.571)
-            "#66b32e",  # green (0.571–0.857)
-            "#fdae61",  # yellow‐orange (0.857–1.0)
-            "#8b0000"   # dark red for anything above 1.0  
+        #colors = [
+            #"#2c115f",  # dark blue  (for the lowest band: 0–0.286)
+            #"#1f3284",  # medium‐blue/green (0.286–0.571)
+            #"#66b32e",  # green (0.571–0.857)
+            #"#fdae61",  # yellow‐orange (0.857–1.0)
+            #"#8b0000"   # dark red for anything above 1.0  
+        #]
+        colors = [   
+            "#8b0000" , # dark red 
+            "#fdae61",  # yellow‐orange 
+            "#66b32e",  # green 
+            "#1f3284",  # medium‐blue/green
+            "#2c115f"  # dark blue            
         ]
         #    Because we have 4 bands, we define 5 boundaries in “height‐normalized” space:
         bounds = [0.0, 0.286, 0.571, 0.857, 1.0]
