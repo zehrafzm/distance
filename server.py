@@ -1,4 +1,5 @@
-from fastapi import FastAPI, Request, Response, JSONResponse
+from fastapi import FastAPI, Request, Response
+from fastapi.responses import JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from io import BytesIO
 from PIL import Image
