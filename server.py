@@ -41,7 +41,7 @@ async def generate_heatmap(request: Request):
 
         # Define your six sensor locations
         sensor_x = np.array([0.2, 0.4, 0.6, 0.8, 0.2, 0.4, 0.6, 0.8])
-        sensor_y = np.array([0.4, 0.4, 0.4, 0.4, 0.8, 0.8, 0.8, 0.8])
+        sensor_y = np.array([0.3, 0.3, 0.3, 0.3, 0,6, 0.6, 0.6, 0.6])
 
         sensor_vals = np.array(d)
         points = np.column_stack((sensor_x, sensor_y))
