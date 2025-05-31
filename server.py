@@ -60,7 +60,7 @@ async def generate_heatmap(request: Request):
         # Normalize and colorize
         # Normalize according to the minimum
         #norm = (grid_z - grid_z.min()) / (np.ptp(grid_z) + 1e-6) 
-        norm = grid_z / 130.0
+        norm = grid_z / 145.0
 
         cmap = plt.get_cmap("plasma")
         colored = cmap(norm)
