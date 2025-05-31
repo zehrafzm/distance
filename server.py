@@ -31,7 +31,7 @@ async def generate_heatmap(request: Request):
                 return 0.0
 
         # Pull out six distances
-        d = [safe_float(data.get(f"distance{i}")) for i in range(1, 10)]
+        d = [safe_float(data.get(f"distance{i}")) for i in range(1, 9)]
         print(f"📡 Distances received: {d}")
 
         # If all six are zero, skip
